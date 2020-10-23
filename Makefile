@@ -9,3 +9,5 @@ all:
 	$(CC) $(OPTIONS) -o $(BINARY) $(SOURCES) $(LIBS)
 clean:
 	rm -rf $(BINARY)
+install:
+	cp $(BINARY) /usr/local/bin/
