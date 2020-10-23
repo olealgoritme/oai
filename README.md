@@ -1,13 +1,13 @@
-#### oaimg - terminal image viewer ####
+### oaimg - terminal image viewer ###
 
-- Still under development
+###### Still under development ######
 
-TODO:
-    Fix color corrections for different image types
+##### TODO #####
+    - Fix color corrections for different image types
 
 
 
-Build (debian/ubuntu based)
+##### Build (debian/ubuntu based) #####
 ````
 git clone https://github.com/olealgoritme/oaimg
 cd oaimg
@@ -15,7 +15,7 @@ cd oaimg
 make
 ````
 
-Install oaimg system wide
+##### Install oaimg system wide #####
 ````
 sudo make install
 ````
