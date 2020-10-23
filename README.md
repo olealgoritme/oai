@@ -1,9 +1,9 @@
 ### oaimg - terminal image viewer ###
-
 ###### Still under development ######
 
-##### TODO #####
-    - Fix color corrections for different image types
+TODOs
+- Fix color corrections for different image types
+- Implement ffmpeg/ffplay/mplayer/mpv to play videos in terminal
 
 
 
