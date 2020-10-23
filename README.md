@@ -22,9 +22,9 @@ sudo make install
 
 
 
-##### Usage #####
+##### Use in terminal emulator #####
 ````
-oaimg /home/user/Pictures/cool_picture.jpg
-oaimg /home/user/Pictures/cool_picture.jpg -s 0.3 (scale to 30%)
-oaimg /home/user/Pictures/cool_picture.jpg -s 0.3 (scale to 30%) --centered (centered)
+oaimg cool_picture.jpg
+oaimg cool_picture.jpg -s 0.3 (scale to 30%)
+oaimg cool_picture.jpg -s 2.0 (scale to 200%) --centered
 ````
