@@ -1,5 +1,5 @@
 #!/bin/sh
-# dependencies for oaimg
+# dependencies for oai
 
 apt install \
     libcairo2 \

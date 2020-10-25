@@ -2,8 +2,8 @@ CC=gcc
 OPTIONS=
 LIBS=-lcairo -lxcb -lX11 -lm
 BUILD_DIR=.
-SOURCES=oaimg.c
-BINARY=oaimg
+SOURCES=oai.c
+BINARY=oai
 
 all:
 	$(CC) $(OPTIONS) -o $(BINARY) $(SOURCES) $(LIBS)
