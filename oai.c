@@ -363,7 +363,7 @@ void mpv_play (const char *filename, Window window, FILE **mpv)
 
 void print_usage()
 {
-    printf("Usage: oaimg [-h, --help] [-s, --scale] [-x xposition] [-y yposition] IMAGE_FILE\n");
+    printf("Usage: oai [-h, --help] [-s, --scale] [-x xposition] [-y yposition] IMAGE_FILE\n");
       puts("--------------------------------------------------------------------------------");
       puts("    -h, --help       print this message");
       puts("    -c, --centered   set image centered");
@@ -386,7 +386,6 @@ int main (int argc, char **argv)
     int image_height = 0;
     int image_width = 0;
     char *filename;
-    char *title = "oaimg";
 
     int help_flag = 0;
     int error_flag = 0;
@@ -489,7 +488,7 @@ int main (int argc, char **argv)
     show_window(display_info.c, window, x, y);
 
     if ( DEBUG > 0 ) {
-        debug_print("oaimg Window id: 0x%08x\n", window);
+        debug_print("oai Window id: 0x%08x\n", window);
         fflush(stdout);
     }
 
