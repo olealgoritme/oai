@@ -4,6 +4,7 @@
 TODO List
 
 - [x] Fix color corrections for different image types
+- [ ] Add centered without crop (keep aspect ratio)
 - [ ] Support more image formats (tiff, gif, etc)
 
 
