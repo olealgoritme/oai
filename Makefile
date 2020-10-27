@@ -1,5 +1,5 @@
 CC=gcc
-OPTIONS=
+OPTIONS=-Werror
 LIBS=-lcairo -lxcb -lX11 -lm
 BUILD_DIR=.
 SOURCES=oai.c

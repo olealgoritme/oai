@@ -4,7 +4,8 @@
 TODO List
 
 - [x] Fix color corrections for different image types
-- [ ] Add centered without crop (keep aspect ratio)
+- [x] Keep image aspect ratio
+- [x] Set image centered as default
 - [ ] Support more image formats (tiff, gif, etc)
 
 
@@ -31,7 +32,7 @@ sudo make install
 
 ##### Use in terminal emulator #####
 ````
-oai cool_picture.jpg
-oai cool_picture.jpg -s 0.3 (scale to 30%)
-oai cool_picture.jpg -s 2.0 (scale to 200%) --centered
+oai stepsis.png
+oai stepsis.png -s 0.3 (downscale to 30%)
+oai stepsis.png -s 2.0 (upscale to 200%)
 ````

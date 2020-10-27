@@ -24,7 +24,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define DEBUG 0
+// set debug to 0 to turn off debug output
+#define DEBUG 3
 
 #if defined(DEBUG) && DEBUG > 0
  #define debug_print(fmt, args...) fprintf(stderr, "DEBUG: %s:%d:%s(): " fmt, \
@@ -322,6 +323,32 @@ void cairo_read_image(char * filename, struct cairo_image *image)
     }
 }
 
+void cairo_append_rounded_border(cairo_t *cr)
+{
+    double x             = 25.6,            /* cairo_rectangle like-ish parameters */
+           y             = 25.6,
+           width         = 204.8,
+           height        = 204.8,
+           aspect        = 1.0,             /* aspect ratio */
+           corner_radius = height / 10.0;   /* corner radius */
+
+    double radius = corner_radius / aspect;
+    double degrees = M_PI / 180.0;
+
+    cairo_new_sub_path (cr);
+    cairo_arc (cr, x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
+    cairo_arc (cr, x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
+    cairo_arc (cr, x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
+    cairo_arc (cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+    cairo_close_path (cr);
+
+    cairo_set_source_rgb (cr, 0.5, 0.5, 1);
+    cairo_fill_preserve (cr);
+    cairo_set_source_rgba (cr, 0.5, 0, 0, 0.5);
+    cairo_set_line_width (cr, 10.0);
+    cairo_stroke (cr);
+}
+
 
 int suffix_check(char *filename)
 {
@@ -363,10 +390,9 @@ void mpv_play (const char *filename, Window window, FILE **mpv)
 
 void print_usage()
 {
-    printf("Usage: oai [-h, --help] [-s, --scale] [-x xposition] [-y yposition] IMAGE_FILE\n");
+    printf("Usage: oai [-h, --help] [-s, --scale] [-x position] [-y position] IMAGE_FILE\n");
       puts("--------------------------------------------------------------------------------");
       puts("    -h, --help       print this message");
-      puts("    -c, --centered   set image centered");
       puts("    -s               set image scaling factor");
       puts("    -x               set image at x position");
       puts("    -y               set image at y position");
@@ -380,16 +406,17 @@ int main (int argc, char **argv)
     struct xcb_display display_info;
     struct cairo_image image;
 
+    double fill_percent = 0.8; // fills maximum 80% of the terminal window
+
     int x = 0;
     int y = 0;
-    double s = 1.0;
+    double scale = 1.0;
     int image_height = 0;
     int image_width = 0;
     char *filename;
 
     int help_flag = 0;
     int error_flag = 0;
-    int centered_flag = 0;
 
     int option = 0;
     int option_index = 0;
@@ -397,7 +424,6 @@ int main (int argc, char **argv)
     struct option long_options[] =
     {
             {"help",     no_argument,       &help_flag,       1},
-            {"centered", no_argument,       &centered_flag,   1},
             {"scale",    required_argument, 0,              's'},
             {0, 0, 0, 0}
     };
@@ -412,7 +438,7 @@ int main (int argc, char **argv)
                 break;
 
             case 's':
-                s = atof(optarg);
+                scale = atof(optarg);
                 break;
 
             case 'x':
@@ -456,9 +482,6 @@ int main (int argc, char **argv)
     cairo_read_image(filename, &image);
     xcb_init(&display_info);
 
-    // get image width and height
-    image_height = cairo_image_surface_get_height(image.surface) * s;
-    image_width  = cairo_image_surface_get_width(image.surface) * s;
 
     // open display
     display = XOpenDisplay(NULL);
@@ -472,23 +495,39 @@ int main (int argc, char **argv)
 
     root_win = xcb_get_window_geometry(display_info.c, parent_window);
 
-    // calculate new positions
-    if ( centered_flag ) {
-        x = (root_win.width / 2) - (image_width / 2);
-        y = (root_win.height / 2) - (image_height / 2);
+    // get image width and height
+    image_height = cairo_image_surface_get_height(image.surface);
+    image_width  = cairo_image_surface_get_width(image.surface);
+
+    // scaling calculation
+    int max_width = (fill_percent * root_win.width);
+    if ( image_width > max_width && scale == 1.0) {
+        scale = 0.8; // max_width / image_width;
+        debug_print("Scaled Image size: %dx%d\n", image_width, image_height);
     }
 
+    // keep aspect ratio
+    image_width  *= scale;
+    image_height *= scale;
+
+    // calculate new center position
+    debug_print("Image size: %dx%d\n", image_width, image_height);
+    x = (root_win.width / 2) - (image_width / 2);
+    y = (root_win.height / 2) - (image_height / 2);
+
+    // create xcb and cairo surfaces
     xcb_window_t    window          = create_window(parent_window, display_info, x, y, image_width, image_height);
     cairo_surface_t *window_surface = cairo_xcb_surface_create(display_info.c, window, display_info.v, image_width, image_height);
 
+    // get cairo context and apply scaling factor
     cairo_t *cr = cairo_create(window_surface);
-    cairo_scale(cr, s, s);
+    cairo_scale(cr, scale, scale);
 
     // configure xcb window and map it
     show_window(display_info.c, window, x, y);
 
     if ( DEBUG > 0 ) {
-        debug_print("oai Window id: 0x%08x\n", window);
+        debug_print("oai window id: 0x%08x\n", window);
         fflush(stdout);
     }
 
@@ -501,6 +540,7 @@ int main (int argc, char **argv)
             case XCB_EXPOSE:
             {
                 cairo_draw(cr, image.surface);
+                cairo_append_rounded_border(cr);
                 cairo_surface_flush(image.surface);
                 xcb_set_input_focus(display_info.c, XCB_INPUT_FOCUS_POINTER_ROOT, window, 0);
                 xcb_flush(display_info.c);
@@ -516,7 +556,8 @@ int main (int argc, char **argv)
             {
                 xcb_button_press_event_t *buttonEvt = (xcb_button_press_event_t *) ev;
                 xcb_button_t button = buttonEvt->detail;
-                // any mouse click quits
+
+                // quit on click
                 if(button == XCB_BUTTON_INDEX_1 ||
                    button == XCB_BUTTON_INDEX_2 ||
                    button == XCB_BUTTON_INDEX_3) {
@@ -535,13 +576,13 @@ int main (int argc, char **argv)
                 KeySym keysym = XkbKeycodeToKeysym(display, code, 0, 0);
                 const char *ch = XKeysymToString(keysym);
 
-                // any key quits
-                if ( sizeof(ch) == sizeof(const char*)) {
+                // quit on keypress
+                if (sizeof(ch) == sizeof(const char*)) {
+                    debug_print("key: %s\n", ch);
                     debug_print("QUIT\n");
                     goto END;
                 }
 
-                debug_print("key: %s\n", ch);
                 xcb_flush(display_info.c);
             }
             break;
