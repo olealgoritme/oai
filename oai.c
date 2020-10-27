@@ -198,28 +198,30 @@ xcb_window_t create_window(long parent_window_id, struct xcb_display display_inf
     // generate colormap for window with alpha support
     xcb_window_t colormap = xcb_generate_id(display_info.c);
     xcb_create_colormap(display_info.c, XCB_COLORMAP_ALLOC_NONE, colormap, display_info.s->root, display_info.v->visual_id);
-    const int DOCK = 1;
+    const int dock = 1,
+              depth = 32,
+              border_width = 10;
 
     // generate id
     xcb_window_t window = xcb_generate_id(display_info.c);
     const uint32_t vals[] = {
-        0x00000000,
-        0x00000000,
-        DOCK,
+        0x553D3DFF,
+        0x553D3D77,
+        dock,
         XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_PROPERTY_CHANGE | XCB_EVENT_MASK_KEY_PRESS,
         colormap
     };
 
     // create window
     xcb_create_window(display_info.c,
-                      32,                                   // depth
+                      depth,                                // depth
                       window,                               // xcb_window_t type
                       parent_window_id,                     // parent window (id)
                       x,                                    // window X coord
                       y,                                    // window Y coord
                       width,                                // window width
                       height,                               // window height
-                      0,                                    // border_width
+                      border_width,                         // border_width
                       XCB_WINDOW_CLASS_INPUT_OUTPUT,
                       display_info.v->visual_id,
                       XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK | XCB_CW_COLORMAP,
@@ -323,33 +325,6 @@ void cairo_read_image(char * filename, struct cairo_image *image)
     }
 }
 
-void cairo_append_rounded_border(cairo_t *cr)
-{
-    double x             = 25.6,            /* cairo_rectangle like-ish parameters */
-           y             = 25.6,
-           width         = 204.8,
-           height        = 204.8,
-           aspect        = 1.0,             /* aspect ratio */
-           corner_radius = height / 10.0;   /* corner radius */
-
-    double radius = corner_radius / aspect;
-    double degrees = M_PI / 180.0;
-
-    cairo_new_sub_path (cr);
-    cairo_arc (cr, x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
-    cairo_arc (cr, x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
-    cairo_arc (cr, x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
-    cairo_arc (cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
-    cairo_close_path (cr);
-
-    cairo_set_source_rgb (cr, 0.5, 0.5, 1);
-    cairo_fill_preserve (cr);
-    cairo_set_source_rgba (cr, 0.5, 0, 0, 0.5);
-    cairo_set_line_width (cr, 10.0);
-    cairo_stroke (cr);
-}
-
-
 int suffix_check(char *filename)
 {
     const char *suffix_list[] = { "jpg", "jpeg", "png", "bmp", "gif" };
@@ -406,7 +381,7 @@ int main (int argc, char **argv)
     struct xcb_display display_info;
     struct cairo_image image;
 
-    double fill_percent = 0.8; // fills maximum 80% of the terminal window
+    double fill_percent = 0.9;
 
     int x = 0;
     int y = 0;
@@ -479,9 +454,11 @@ int main (int argc, char **argv)
     // load timer
     clock_t start = clock();
 
+    // read image
     cairo_read_image(filename, &image);
-    xcb_init(&display_info);
 
+    // initialize xcb parameters
+    xcb_init(&display_info);
 
     // open display
     display = XOpenDisplay(NULL);
@@ -496,28 +473,25 @@ int main (int argc, char **argv)
     root_win = xcb_get_window_geometry(display_info.c, parent_window);
 
     // get image width and height
-    image_height = cairo_image_surface_get_height(image.surface);
-    image_width  = cairo_image_surface_get_width(image.surface);
+    image_width  = (cairo_image_surface_get_width(image.surface) * scale);
+    image_height = (cairo_image_surface_get_height(image.surface) * scale);
 
-    // scaling calculation
-    int max_width = (fill_percent * root_win.width);
-    if ( image_width > max_width && scale == 1.0) {
-        scale = 0.8; // max_width / image_width;
-        debug_print("Scaled Image size: %dx%d\n", image_width, image_height);
-    }
+    int max_width = root_win.width * fill_percent;
+    int max_height = root_win.height * fill_percent;
 
-    // keep aspect ratio
-    image_width  *= scale;
-    image_height *= scale;
+    if (image_width >= max_width)
+        image_width = max_width;
+
+    if (image_height >= max_height)
+        image_height = max_height;
 
     // calculate new center position
-    debug_print("Image size: %dx%d\n", image_width, image_height);
     x = (root_win.width / 2) - (image_width / 2);
     y = (root_win.height / 2) - (image_height / 2);
 
     // create xcb and cairo surfaces
     xcb_window_t    window          = create_window(parent_window, display_info, x, y, image_width, image_height);
-    cairo_surface_t *window_surface = cairo_xcb_surface_create(display_info.c, window, display_info.v, image_width, image_height);
+    cairo_surface_t *window_surface = cairo_xcb_surface_create(display_info.c, window, display_info.v, image_width, image_height); // add extra space for rounding corner
 
     // get cairo context and apply scaling factor
     cairo_t *cr = cairo_create(window_surface);
@@ -531,6 +505,7 @@ int main (int argc, char **argv)
         fflush(stdout);
     }
 
+    // xcb generic event struct
     xcb_generic_event_t *ev;
 
     while ( (ev = xcb_wait_for_event(display_info.c)) ) {
@@ -539,9 +514,10 @@ int main (int argc, char **argv)
 
             case XCB_EXPOSE:
             {
+
                 cairo_draw(cr, image.surface);
-                cairo_append_rounded_border(cr);
                 cairo_surface_flush(image.surface);
+
                 xcb_set_input_focus(display_info.c, XCB_INPUT_FOCUS_POINTER_ROOT, window, 0);
                 xcb_flush(display_info.c);
 
