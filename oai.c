@@ -24,8 +24,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// set debug to 0 to turn off debug output
-#define DEBUG 3
+// toggle debug message 0/3
+#define DEBUG 0
 
 #if defined(DEBUG) && DEBUG > 0
  #define debug_print(fmt, args...) fprintf(stderr, "DEBUG: %s:%d:%s(): " fmt, \
