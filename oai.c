@@ -1,9 +1,8 @@
 /*
  * DEPS: sudo apt install libcairo2 libcairo2-dev libxcb1 libxcb1-dev libxcb-xkb1 libxcb-xkb-dev
- *
  * View images inside your terminal window
  *
- * -olealgoritme, 2020
+ * -olealgoritme, 2020/2021
  */
 
 #include <err.h>
@@ -24,8 +23,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-// toggle debug message 0/3
-#define DEBUG 0
+#define DEBUG 3
 
 #if defined(DEBUG) && DEBUG > 0
  #define debug_print(fmt, args...) fprintf(stderr, "DEBUG: %s:%d:%s(): " fmt, \
@@ -57,7 +55,7 @@ struct cairo_image
 {
     cairo_surface_t *surface;
     int            format;
-    unsigned char  *data;
+    void           *data;
     int            width;
     int            height;
     int            n_components;
@@ -73,7 +71,7 @@ struct xcb_display
 };
 
 
-xcb_visualtype_t * get_alpha_visualtype(xcb_screen_t *s)
+static xcb_visualtype_t * get_alpha_visualtype(xcb_screen_t *s)
 {
     // return first visual type with 32bit depth
     xcb_depth_iterator_t di = xcb_screen_allowed_depths_iterator(s);
@@ -87,7 +85,7 @@ xcb_visualtype_t * get_alpha_visualtype(xcb_screen_t *s)
 }
 
 
-void xcb_init(struct xcb_display *display_info)
+static void xcb_init(struct xcb_display *display_info)
 {
 
     display_info->c = xcb_connect(NULL, NULL);
@@ -105,7 +103,7 @@ void xcb_init(struct xcb_display *display_info)
 }
 
 
-struct win xcb_get_window_geometry(xcb_connection_t *c, xcb_window_t window)
+static struct win xcb_get_window_geometry(xcb_connection_t *c, xcb_window_t window)
 {
     struct win win = {0};
 
@@ -126,7 +124,7 @@ struct win xcb_get_window_geometry(xcb_connection_t *c, xcb_window_t window)
 }
 
 
-void xcb_set_opacity(double opacity, xcb_connection_t *c, xcb_window_t win)
+static void xcb_set_opacity(double opacity, xcb_connection_t *c, xcb_window_t win)
 {
     xcb_intern_atom_cookie_t opacity_cookie = xcb_intern_atom(c, 0, strlen ( "_NET_WM_WINDOW_OPACITY" ), "_NET_WM_WINDOW_OPACITY" );
     xcb_intern_atom_reply_t *opacity_reply = xcb_intern_atom_reply ( c, opacity_cookie, NULL );
@@ -144,7 +142,7 @@ void xcb_set_opacity(double opacity, xcb_connection_t *c, xcb_window_t win)
 }
 
 
-void xcb_remove_decorations(xcb_connection_t *c, xcb_window_t win)
+static void xcb_remove_decorations(xcb_connection_t *c, xcb_window_t win)
 {
 
     xcb_intern_atom_cookie_t cookie3 = xcb_intern_atom(c, 0, strlen ( "_MOTIF_WM_HINTS" ), "_MOTIF_WM_HINTS" );
@@ -180,12 +178,12 @@ void xcb_remove_decorations(xcb_connection_t *c, xcb_window_t win)
 }
 
 
-Window xcb_get_root_window(Display *d)
+static Window xcb_get_root_window(Display *d)
 {
     Window w;
     int r;
     XGetInputFocus(d, &w, &r);
-    if ( w != None ) {
+    if (w != None) {
         debug_print("Root Window id: 0x%x8\n", (int) w);
         return w;
     }
@@ -193,7 +191,7 @@ Window xcb_get_root_window(Display *d)
 }
 
 
-xcb_window_t create_window(long parent_window_id, struct xcb_display display_info, int x, int y, int width, int height)
+static xcb_window_t create_window(long parent_window_id, struct xcb_display display_info, int x, int y, int width, int height)
 {
     // generate colormap for window with alpha support
     xcb_window_t colormap = xcb_generate_id(display_info.c);
@@ -235,7 +233,7 @@ xcb_window_t create_window(long parent_window_id, struct xcb_display display_inf
 }
 
 
-void show_window (xcb_connection_t *c, xcb_window_t window, int x, int y)
+static void show_window (xcb_connection_t *c, xcb_window_t window, int x, int y)
 {
     // atom names that we want to find atoms for
     const char *atom_names[] = {
@@ -289,7 +287,8 @@ xcb_atom_t intern_atom(xcb_connection_t *conn, const char *atom)
 {
     xcb_atom_t result = XCB_NONE;
     xcb_intern_atom_reply_t *r = xcb_intern_atom_reply(conn,
-                                                       xcb_intern_atom(conn, 0, strlen(atom), atom), NULL);
+                                                       xcb_intern_atom(conn, 0, strlen(atom), atom), 
+                                                       NULL);
     if (r)
         result = r->atom;
     free(r);
@@ -358,14 +357,14 @@ void repaint_window(cairo_surface_t *surface, cairo_surface_t *window_surface)
 void mpv_play (const char *filename, Window window, FILE **mpv)
 {
   char cmd[1024];
-  snprintf (cmd, 1024, "mpv --wid 0x%lx %s", window, filename);
-  *mpv = popen (cmd, "w");
+  snprintf(cmd, 1024, "mpv --wid 0x%lx %s", window, filename);
+  *mpv = popen(cmd, "w");
 }
 
 
 void print_usage()
 {
-    printf("Usage: oai [-h, --help] [-s, --scale] [-x position] [-y position] IMAGE_FILE\n");
+    printf("Usage: oai [-h, --help] [-s, --scale] [-x position] [-y position] imagefile\n");
       puts("--------------------------------------------------------------------------------");
       puts("    -h, --help       print this message");
       puts("    -s               set image scaling factor");
@@ -400,11 +399,12 @@ int main (int argc, char **argv)
     {
             {"help",     no_argument,       &help_flag,       1},
             {"scale",    required_argument, 0,              's'},
+            {"debug",    no_argument,       0,                0}, 
             {0, 0, 0, 0}
     };
 
-    while ( option != -1 ) {
-        option = getopt_long(argc, argv, "h:s:x:y:", long_options, &option_index);
+    while (option != -1) {
+        option = getopt_long(argc, argv, "h:d:s:x:y:", long_options, &option_index);
 
         switch ( option ) {
             case 'h':
@@ -430,24 +430,24 @@ int main (int argc, char **argv)
         }
     }
 
-    if ( help_flag ) {
+    if (help_flag) {
         print_usage();
         return 0;
     }
 
-    if ( error_flag )
+    if (error_flag)
         return 1;
 
-    if ( !(optind < argc ) ){
+    if (!(optind < argc)) {
         errx(1, "ERR: No image file specified");
     }
 
-    if ( (optind+1) != argc ) {
+    if ((optind+1) != argc) {
         errx(1, "ERR: Unexpected argument");
     }
 
     filename = argv[optind];
-    if ( suffix_check(filename) < 0 ) {
+    if (suffix_check(filename)< 0) {
         errx(1, "ERR: Wrong image file type");
     }
 
@@ -467,7 +467,7 @@ int main (int argc, char **argv)
 
     // find parent window
     xcb_window_t parent_window = xcb_get_root_window(display);
-    if ( !parent_window )
+    if (!parent_window)
         errx(1, "ERR: Cant' attach to parent window");
 
     root_win = xcb_get_window_geometry(display_info.c, parent_window);
@@ -518,7 +518,7 @@ int main (int argc, char **argv)
                 cairo_draw(cr, image.surface);
                 cairo_surface_flush(image.surface);
 
-                xcb_set_input_focus(display_info.c, XCB_INPUT_FOCUS_POINTER_ROOT, window, 0);
+                xcb_set_input_focus(display_info.c, XCB_INPUT_FOCUS_PARENT, window, 0);
                 xcb_flush(display_info.c);
 
                 clock_t diff = clock() - start;
@@ -538,6 +538,7 @@ int main (int argc, char **argv)
                    button == XCB_BUTTON_INDEX_2 ||
                    button == XCB_BUTTON_INDEX_3) {
                     debug_print("QUIT\n");
+                    xcb_set_input_focus(display_info.c, XCB_INPUT_FOCUS_PARENT, parent_window, 0);
                     goto END;
                 }
             }
@@ -570,6 +571,8 @@ END:
     cairo_surface_destroy(window_surface);
     xcb_destroy_window(display_info.c, window);
     xcb_disconnect(display_info.c);
+
+    XCloseDisplay(display);
     display_info.c = NULL;
 
 
