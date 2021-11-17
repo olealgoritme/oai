@@ -71,22 +71,21 @@ struct xcb_display
 };
 
 Display * display;
-xcb_window_t parent_window;
-xcb_window_t window;
 struct win root_win;
+
 struct xcb_display display_info;
-struct cairo_image image;
+xcb_window_t parent_window;
+xcb_window_t window = {0};
 cairo_t *cr = NULL;
 cairo_surface_t *window_surface = NULL;
+struct cairo_image image;
 
 double fill_percent = 0.9;
-
-int x = 0;
-int y = 0;
 double scale = 1.0;
 int image_height = 0;
 int image_width = 0;
-
+int x = 0;
+int y = 0;
 
 static xcb_visualtype_t * get_alpha_visualtype(xcb_screen_t *s)
 {
@@ -123,10 +122,8 @@ static void xcb_init(struct xcb_display *display_info)
 static struct win xcb_get_window_geometry(xcb_connection_t *c, xcb_window_t window)
 {
     struct win win = {0};
-
     xcb_get_geometry_cookie_t cookie;
     xcb_get_geometry_reply_t *reply;
-
     cookie = xcb_get_geometry(c, window);
     if ((reply = xcb_get_geometry_reply(c, cookie, NULL))) {
         debug_print("Root window relative position is at %d,%d\n", reply->x, reply->y);
@@ -145,7 +142,6 @@ static void xcb_set_opacity(double opacity, xcb_connection_t *c, xcb_window_t wi
 {
     xcb_intern_atom_cookie_t opacity_cookie = xcb_intern_atom(c, 0, strlen ( "_NET_WM_WINDOW_OPACITY" ), "_NET_WM_WINDOW_OPACITY" );
     xcb_intern_atom_reply_t *opacity_reply = xcb_intern_atom_reply ( c, opacity_cookie, NULL );
-
     uint32_t real_opacity = opacity * 0xffffffff;
 
     xcb_change_property(c ,
@@ -161,7 +157,6 @@ static void xcb_set_opacity(double opacity, xcb_connection_t *c, xcb_window_t wi
 
 static void xcb_remove_decorations(xcb_connection_t *c, xcb_window_t win)
 {
-
     xcb_intern_atom_cookie_t cookie3 = xcb_intern_atom(c, 0, strlen ( "_MOTIF_WM_HINTS" ), "_MOTIF_WM_HINTS" );
     xcb_intern_atom_reply_t *reply3 = xcb_intern_atom_reply ( c, cookie3, NULL );
 
@@ -381,6 +376,7 @@ void mpv_play (const char *filename, Window window, FILE **mpv)
 void render_window(int x, int y, int image_width, int image_height)
 {
     // create xcb and cairo surfaces
+    xcb_destroy_window(display_info.c, window);
     window = create_window(parent_window, display_info, x, y, image_width, image_height);
     window_surface = cairo_xcb_surface_create(display_info.c, window, display_info.v, image_width, image_height);
     cr = cairo_create(window_surface);
