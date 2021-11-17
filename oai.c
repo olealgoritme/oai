@@ -517,7 +517,6 @@ int main (int argc, char **argv)
 
             case XCB_EXPOSE:
             {
-
                 cairo_draw(cr, image.surface);
                 cairo_surface_flush(image.surface);
 
@@ -527,10 +526,10 @@ int main (int argc, char **argv)
                 clock_t diff = clock() - start;
                 int msec = diff * 1000 / CLOCKS_PER_SEC;
                 debug_print("Time taken %d seconds %d milliseconds\n", msec/1000, msec%1000);
-
+                break;
             }
-            break;
 
+            // mouse click = QUIT
             case XCB_BUTTON_PRESS:
             {
                 xcb_button_press_event_t *buttonEvt = (xcb_button_press_event_t *) ev;
@@ -542,8 +541,8 @@ int main (int argc, char **argv)
                     xcb_set_input_focus(display_info.c, XCB_INPUT_FOCUS_PARENT, parent_window, 0);
                     goto END;
                 }
+                break;
             }
-            break;
 
             case XCB_KEY_PRESS:
             {
@@ -596,15 +595,15 @@ int main (int argc, char **argv)
                     render_window(x, y, image_width, image_height);
                     break;
                 }
-                else // everything else
-                if (sizeof(ch) == sizeof(const char*)) {
+                else // "Q" for quit
+                if (keysym == 0x0071) {
                     debug_print("key: %s\n", ch);
                     debug_print("QUIT\n");
                     goto END;
                 }
                 xcb_flush(display_info.c);
+                break;
             }
-            break;
         }
     }
 
