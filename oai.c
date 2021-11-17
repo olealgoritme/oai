@@ -23,7 +23,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define DEBUG 3
+#define DEBUG 0
 
 #if defined(DEBUG) && DEBUG > 0
  #define debug_print(fmt, args...) fprintf(stderr, "DEBUG: %s:%d:%s(): " fmt, \
@@ -69,6 +69,23 @@ struct xcb_display
     xcb_screen_t     *s;
     xcb_visualtype_t *v;
 };
+
+Display * display;
+xcb_window_t parent_window;
+xcb_window_t window;
+struct win root_win;
+struct xcb_display display_info;
+struct cairo_image image;
+cairo_t *cr = NULL;
+cairo_surface_t *window_surface = NULL;
+
+double fill_percent = 0.9;
+
+int x = 0;
+int y = 0;
+double scale = 1.0;
+int image_height = 0;
+int image_width = 0;
 
 
 static xcb_visualtype_t * get_alpha_visualtype(xcb_screen_t *s)
@@ -287,7 +304,7 @@ xcb_atom_t intern_atom(xcb_connection_t *conn, const char *atom)
 {
     xcb_atom_t result = XCB_NONE;
     xcb_intern_atom_reply_t *r = xcb_intern_atom_reply(conn,
-                                                       xcb_intern_atom(conn, 0, strlen(atom), atom), 
+                                                       xcb_intern_atom(conn, 0, strlen(atom), atom),
                                                        NULL);
     if (r)
         result = r->atom;
@@ -361,6 +378,19 @@ void mpv_play (const char *filename, Window window, FILE **mpv)
   *mpv = popen(cmd, "w");
 }
 
+void render_window(int x, int y, int image_width, int image_height)
+{
+    // create xcb and cairo surfaces
+    window = create_window(parent_window, display_info, x, y, image_width, image_height);
+    window_surface = cairo_xcb_surface_create(display_info.c, window, display_info.v, image_width, image_height);
+    cr = cairo_create(window_surface);
+
+    cairo_scale(cr, scale, scale);
+    cairo_surface_flush(window_surface);
+
+    // configure xcb window and map it
+    show_window(display_info.c, window, x, y);
+}
 
 void print_usage()
 {
@@ -375,23 +405,9 @@ void print_usage()
 
 int main (int argc, char **argv)
 {
-    Display * display;
-    struct win root_win;
-    struct xcb_display display_info;
-    struct cairo_image image;
-
-    double fill_percent = 0.9;
-
-    int x = 0;
-    int y = 0;
-    double scale = 1.0;
-    int image_height = 0;
-    int image_width = 0;
     char *filename;
-
     int help_flag = 0;
     int error_flag = 0;
-
     int option = 0;
     int option_index = 0;
 
@@ -399,7 +415,7 @@ int main (int argc, char **argv)
     {
             {"help",     no_argument,       &help_flag,       1},
             {"scale",    required_argument, 0,              's'},
-            {"debug",    no_argument,       0,                0}, 
+            {"debug",    no_argument,       0,                0},
             {0, 0, 0, 0}
     };
 
@@ -466,7 +482,7 @@ int main (int argc, char **argv)
         errx(1, "ERR: Cant' open display");
 
     // find parent window
-    xcb_window_t parent_window = xcb_get_root_window(display);
+    parent_window = xcb_get_root_window(display);
     if (!parent_window)
         errx(1, "ERR: Cant' attach to parent window");
 
@@ -485,20 +501,11 @@ int main (int argc, char **argv)
     if (image_height >= max_height)
         image_height = max_height;
 
-    // calculate new center position
+    // calculate center position
     x = (root_win.width / 2) - (image_width / 2);
     y = (root_win.height / 2) - (image_height / 2);
 
-    // create xcb and cairo surfaces
-    xcb_window_t    window          = create_window(parent_window, display_info, x, y, image_width, image_height);
-    cairo_surface_t *window_surface = cairo_xcb_surface_create(display_info.c, window, display_info.v, image_width, image_height); // add extra space for rounding corner
-
-    // get cairo context and apply scaling factor
-    cairo_t *cr = cairo_create(window_surface);
-    cairo_scale(cr, scale, scale);
-
-    // configure xcb window and map it
-    show_window(display_info.c, window, x, y);
+    render_window(x, y, image_width, image_height);
 
     if ( DEBUG > 0 ) {
         debug_print("oai window id: 0x%08x\n", window);
@@ -534,9 +541,7 @@ int main (int argc, char **argv)
                 xcb_button_t button = buttonEvt->detail;
 
                 // quit on click
-                if(button == XCB_BUTTON_INDEX_1 ||
-                   button == XCB_BUTTON_INDEX_2 ||
-                   button == XCB_BUTTON_INDEX_3) {
+                if (button == XCB_BUTTON_INDEX_1 || button == XCB_BUTTON_INDEX_2 || button == XCB_BUTTON_INDEX_3) {
                     debug_print("QUIT\n");
                     xcb_set_input_focus(display_info.c, XCB_INPUT_FOCUS_PARENT, parent_window, 0);
                     goto END;
@@ -553,13 +558,54 @@ int main (int argc, char **argv)
                 KeySym keysym = XkbKeycodeToKeysym(display, code, 0, 0);
                 const char *ch = XKeysymToString(keysym);
 
-                // quit on keypress
+                // plus
+                if(keysym == 0x002b) {
+                    debug_print("pressed +\n");
+                    scale = scale * 1.1;
+                    render_window(x, y, image_width, image_height);
+                    break;
+                }
+                else // minus
+                if (keysym == 0x002d) {
+                    debug_print("pressed -\n");
+                    scale = scale * 0.9;
+                    render_window(x, y, image_width, image_height);
+                    break;
+                }
+                else // up arrow
+                if (keysym == 0xff52 || keysym == 0x08fc) {
+                    debug_print("pressed up\n");
+                    y = (y - 20);
+                    render_window(x, y, image_width, image_height);
+                    break;
+                }
+                else // right arrow
+                if (keysym == 0xff53 || keysym == 0x09f5) {
+                    debug_print("pressed right\n");
+                    x = (x + 20);
+                    render_window(x, y, image_width, image_height);
+                    break;
+                }
+                else // down arrow
+                if (keysym == 0xff54 || keysym == 0xff98) {
+                    debug_print("pressed down\n");
+                    y = (y + 20);
+                    render_window(x, y, image_width, image_height);
+                    break;
+                }
+                else // left arrow
+                if (keysym == 0xff51 || keysym == 0xff96) {
+                    debug_print("pressed left\n");
+                    x = (x - 20);
+                    render_window(x, y, image_width, image_height);
+                    break;
+                }
+                else // everything else
                 if (sizeof(ch) == sizeof(const char*)) {
                     debug_print("key: %s\n", ch);
                     debug_print("QUIT\n");
                     goto END;
                 }
-
                 xcb_flush(display_info.c);
             }
             break;
@@ -567,15 +613,15 @@ int main (int argc, char **argv)
     }
 
 END:
+{
     cairo_surface_destroy(image.surface);
     cairo_surface_destroy(window_surface);
+    cairo_destroy(cr);
     xcb_destroy_window(display_info.c, window);
     xcb_disconnect(display_info.c);
-
     XCloseDisplay(display);
     display_info.c = NULL;
+}
 
-
-    // return
     return 0;
 }
