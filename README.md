@@ -7,6 +7,7 @@ TODO List
 - [x] Keep image aspect ratio
 - [x] Set image centered as default
 - [ ] Support more image formats (tiff, gif, etc)
+- [ ] Re-draw on zoom-in/zoom-out
 
 
 IDEAS
@@ -31,6 +32,7 @@ sudo make install
 
 
 ##### Use in terminal emulator #####
+- arrow keys and +/- 
 ````
 oai stepsis.png
 oai stepsis.png -s 0.3 (downscale to 30%)
