@@ -32,7 +32,8 @@ sudo make install
 
 
 ##### Use in terminal emulator #####
-- arrow keys and +/- 
+- arrow keys moves image inside terminal 
+- +/- for zoom in/out (still buggy, needs fix)
 ````
 oai stepsis.png
 oai stepsis.png -s 0.3 (downscale to 30%)
