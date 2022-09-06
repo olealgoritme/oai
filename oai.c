@@ -23,6 +23,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define MOVEMENT_PIXEL_STEP 20 /* 20 pixel movement */
+
 #define DEBUG 0
 
 #if defined(DEBUG) && DEBUG > 0
@@ -380,9 +382,11 @@ void render_window(int x, int y, int image_width, int image_height)
     window = create_window(parent_window, display_info, x, y, image_width, image_height);
     window_surface = cairo_xcb_surface_create(display_info.c, window, display_info.v, image_width, image_height);
     cr = cairo_create(window_surface);
+    cairo_set_source_surface(cr, window_surface, 0, 0);
+    cairo_paint(cr);
 
     cairo_scale(cr, scale, scale);
-    cairo_surface_flush(window_surface);
+    //cairo_surface_flush(window_surface);
 
     // configure xcb window and map it
     show_window(display_info.c, window, x, y);
@@ -556,46 +560,56 @@ int main (int argc, char **argv)
                 // plus
                 if(keysym == 0x002b) {
                     debug_print("pressed +\n");
-                    scale = scale * 1.1;
+                    scale *= 1.1;
+                    image_width *= 1.1;
+                    image_height *= 1.1;
                     render_window(x, y, image_width, image_height);
                     break;
                 }
-                else // minus
+                else 
+                // minus
                 if (keysym == 0x002d) {
                     debug_print("pressed -\n");
-                    scale = scale * 0.9;
+                    scale *= 0.9;
+                    image_width *= 0.9;
+                    image_height *= 0.9;
                     render_window(x, y, image_width, image_height);
                     break;
                 }
-                else // up arrow
+                else 
+                // up arrow
                 if (keysym == 0xff52 || keysym == 0x08fc) {
                     debug_print("pressed up\n");
-                    y = (y - 20);
+                    y -= MOVEMENT_PIXEL_STEP;
                     render_window(x, y, image_width, image_height);
                     break;
                 }
-                else // right arrow
+                else 
+                // right arrow
                 if (keysym == 0xff53 || keysym == 0x09f5) {
                     debug_print("pressed right\n");
-                    x = (x + 20);
+                    x += MOVEMENT_PIXEL_STEP;
                     render_window(x, y, image_width, image_height);
                     break;
                 }
-                else // down arrow
+                else 
+                // down arrow
                 if (keysym == 0xff54 || keysym == 0xff98) {
                     debug_print("pressed down\n");
-                    y = (y + 20);
+                    y += MOVEMENT_PIXEL_STEP;
                     render_window(x, y, image_width, image_height);
                     break;
                 }
-                else // left arrow
+                else 
+                // left arrow
                 if (keysym == 0xff51 || keysym == 0xff96) {
                     debug_print("pressed left\n");
-                    x = (x - 20);
+                    x -= MOVEMENT_PIXEL_STEP;
                     render_window(x, y, image_width, image_height);
                     break;
                 }
-                else // "Q" for quit
+                else 
+                // "q" to quit
                 if (keysym == 0x0071) {
                     debug_print("key: %s\n", ch);
                     debug_print("QUIT\n");

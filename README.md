@@ -6,8 +6,8 @@ TODO List
 - [x] Fix color corrections for different image types
 - [x] Keep image aspect ratio
 - [x] Set image centered as default
-- [ ] Support more image formats (tiff, gif, etc)
-- [ ] Re-draw on zoom-in/zoom-out
+- [ ] Code cleanup
+- [ ] Fix bugs
 
 
 IDEAS
@@ -30,10 +30,10 @@ sudo make install
 ````
 
 
-
 ##### Use in terminal emulator #####
 - arrow keys moves image inside terminal 
 - +/- for zoom in/out (still buggy, needs fix)
+- mouse click on image or 'q' closes oai
 ````
 oai stepsis.png
 oai stepsis.png -s 0.3 (downscale to 30%)
