@@ -1,7 +1,5 @@
 /*
- * DEPS: sudo apt install libcairo2 libcairo2-dev libxcb1 libxcb1-dev libxcb-xkb1 libxcb-xkb-dev
  * View images inside your terminal window
- *
  * -olealgoritme, 2020/2021
  */
 
